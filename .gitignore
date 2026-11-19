@@ -31,7 +31,8 @@ uploads/
 .ppt-build/
 .codex-finalizer/
 
-# Local agent planning notes
+# Local agent workspace (notes, memory)
+.workbuddy/
 task_plan.md
 findings.md
 progress.md
