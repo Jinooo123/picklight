@@ -1,3 +1,6 @@
+# Office 打开文件时的临时锁文件
+~$*
+
 # IDE and OS
 .idea/
 .vscode/
