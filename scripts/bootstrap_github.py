@@ -95,20 +95,63 @@ def check_gh():
     if not shutil.which("gh"):
         sys.exit(
             "未找到 GitHub CLI（gh）。\n"
-            "  Windows: winget install --id GitHub.cli\n"
+            "  Windows: winget install --id GitHub.cli（装完要新开终端）\n"
             "  macOS:   brew install gh\n"
-            "装好后执行 gh auth login，再重跑本脚本；或按 docs/04-git-workflow.md 手工操作。"
+            "装好后执行 gh auth login，或设置 GH_TOKEN 后重跑本脚本；也可按 docs/04-git-workflow.md 手工操作。"
         )
     r = run(["gh", "auth", "status"], check=False)
     if r.returncode != 0:
-        sys.exit("gh 未登录，先执行：gh auth login")
+        detail = (r.stderr or r.stdout or "").strip()
+        sys.exit(
+            "gh 未获得有效授权。\n"
+            + (detail + "\n" if detail else "")
+            + "二选一：\n"
+            "  1) 设置环境变量：$env:GH_TOKEN = \"ghp_...\"\n"
+            "  2) 登录：gh auth login"
+        )
+
+
+def parse_slug(url):
+    """从远程地址解析 owner/repo，不依赖 API。"""
+    s = (url or "").strip()
+    s = s.replace("git@", "").replace("https://", "").replace("http://", "")
+    s = s.replace("ssh://", "")
+    if "@" in s:                     # ssh://git@github.com/owner/repo
+        s = s.split("@", 1)[1]
+    s = s.replace(":", "/", 1)       # git@github.com:owner/repo -> github.com/owner/repo
+    parts = [p for p in s.split("/") if p]
+    if len(parts) < 3:
+        return None
+    owner, repo = parts[1], parts[2]
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+    return f"{owner}/{repo}" if owner and repo else None
 
 
 def repo_slug(repo_url):
-    r = run(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], check=False)
-    if r.returncode == 0 and r.stdout.strip():
-        return r.stdout.strip()
-    raise SystemExit("无法识别仓库名，请确认已在 GitHub 上创建空仓库并添加 origin")
+    slug = parse_slug(repo_url)
+    if not slug:
+        raise SystemExit(f"无法从远程地址解析 owner/repo：{repo_url}")
+
+    r = run(["gh", "api", f"repos/{slug}", "--jq", ".full_name"], check=False)
+    if r.returncode != 0:
+        detail = (r.stderr or r.stdout or "").strip()
+        hints = []
+        low = detail.lower()
+        if "bad credentials" in low or "401" in low:
+            hints.append("token 无效或已过期：确认复制完整、没有多余空格")
+        if "not found" in low or "404" in low:
+            hints.append("token 看不到这个仓库：classic token 需勾 repo；fine-grained token 需在 Repository access 里勾选该仓库并给 Issues/Administration 读写权限")
+        if "resource not accessible" in low:
+            hints.append("token 权限不足：至少需要 repo（classic）或 Issues + Administration 写权限（fine-grained）")
+        raise SystemExit(
+            f"无法访问仓库 {slug}：\n  {detail}\n\n"
+            + ("可能原因：\n" + "\n".join(f"  - {h}" for h in hints) + "\n" if hints else "")
+            + "自检命令：gh api user --jq .login"
+        )
+    actual = r.stdout.strip()
+    print(f"[repo] {actual}")
+    return actual
 
 
 def ensure_remote(repo_url):
@@ -246,7 +289,6 @@ def main():
     check_gh()
     ensure_remote(args.repo_url)
     slug = repo_slug(args.repo_url)
-    print(f"[repo] {slug}")
     push_main()
     ensure_labels(rows)
     ensure_milestones(rows)
