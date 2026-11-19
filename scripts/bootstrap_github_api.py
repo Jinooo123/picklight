@@ -99,8 +99,9 @@ def ensure_labels(slug):
 
 
 def ensure_milestones(rows):
-    status, existing = api("GET", "/repos/{}/milestones?state=all&per_page=100".format(slug_holder[0]))
-    titles = {m["title"] for m in existing} if isinstance(existing, list) else set()
+    """返回 {里程碑标题: 编号}，已存在的复用。"""
+    status, existing = api("GET", f"/repos/{slug_holder[0]}/milestones?state=all&per_page=100")
+    numbers = {m["title"]: m["number"] for m in existing} if isinstance(existing, list) else {}
 
     due = {}
     for row in rows:
@@ -108,20 +109,62 @@ def ensure_milestones(rows):
 
     created = 0
     for title, end in due.items():
-        if title in titles:
+        if title in numbers:
             print(f"[milestone] 已存在 {title}")
             continue
-        st, _ = api("POST", f"/repos/{slug_holder[0]}/milestones",
-                    {"title": title, "due_on": f"{end}T23:59:59Z"})
-        if st == 201:
+        st, data = api("POST", f"/repos/{slug_holder[0]}/milestones",
+                       {"title": title, "due_on": f"{end}T23:59:59Z"})
+        if st == 201 and isinstance(data, dict):
+            numbers[title] = data["number"]
             created += 1
             print(f"[milestone] 已创建 {title}（{end}）")
         else:
             print(f"[milestone] {title} 创建失败（{st}）")
-    print(f"[milestone] 新建 {created} 个")
+    print(f"[milestone] 新建 {created} 个，可用 {len(numbers)} 个")
+    return numbers
 
 
-def create_issues(rows):
+def assign_milestones(rows, numbers):
+    """把 Issue 归到对应里程碑；已归好的跳过。修复早期漏传 milestone 的数据。"""
+    issues = {}
+    page = 1
+    while True:
+        st, data = api("GET", f"/repos/{slug_holder[0]}/issues?state=all&per_page=100&page={page}")
+        if st != 200 or not isinstance(data, list) or not data:
+            break
+        for item in data:
+            if "pull_request" in item:
+                continue
+            issues[item["title"]] = item
+        if len(data) < 100:
+            break
+        page += 1
+
+    todo = []
+    for row in rows:
+        item = issues.get(f"[{row['id']}] {row['title']}")
+        if not item or item.get("milestone"):
+            continue
+        num = numbers.get(row["milestone"])
+        if num:
+            todo.append((item["number"], num, row["id"]))
+
+    if not todo:
+        print("[milestone] 所有 Issue 已归属里程碑")
+        return
+
+    fixed = 0
+    for issue_no, ms_no, tid in todo:
+        st, _ = api("PATCH", f"/repos/{slug_holder[0]}/issues/{issue_no}", {"milestone": ms_no})
+        if st == 200:
+            fixed += 1
+        else:
+            print(f"[milestone] {tid}（#{issue_no}）归属失败（{st}）")
+        time.sleep(0.4)
+    print(f"[milestone] 已为 {fixed}/{len(todo)} 个 Issue 补充里程碑")
+
+
+def create_issues(rows, numbers):
     slug = slug_holder[0]
     status, page1 = api("GET", f"/repos/{slug}/issues?state=all&per_page=100&page=1")
     existing = {i["title"] for i in page1} if isinstance(page1, list) else set()
@@ -139,6 +182,8 @@ def create_issues(rows):
             "body": issue_body(row, dep_numbers),
             "labels": [lb.strip() for lb in row["labels"].split(",") if lb.strip()],
         }
+        if numbers.get(row["milestone"]):
+            payload["milestone"] = numbers[row["milestone"]]
         st, data = api("POST", f"/repos/{slug}/issues", payload)
         if st == 201 and isinstance(data, dict):
             dep_numbers[row["id"]] = str(data["number"])
@@ -202,9 +247,10 @@ def main():
     print(f"[repo] {repo['full_name']}（{'公开' if not repo['private'] else '私有'}）")
 
     ensure_labels(slug_holder[0])
-    ensure_milestones(rows)
+    numbers = ensure_milestones(rows)
     if not args.skip_issues:
-        create_issues(rows)
+        create_issues(rows, numbers)
+    assign_milestones(rows, numbers)
     if not args.skip_protect:
         protect_main()
 
