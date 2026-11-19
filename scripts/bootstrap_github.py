@@ -8,7 +8,7 @@
 
 用法：
     python scripts/bootstrap_github.py --dry-run                       # 只看会建什么，不联网
-    python scripts/bootstrap_github.py --repo-url git@github.com:you/picklight.git
+    python scripts/bootstrap_github.py --repo-url https://github.com/you/picklight.git
     python scripts/bootstrap_github.py --repo-url ... --skip-issues     # 只推仓库和标签
 
 不用 gh 也能手工做，命令见 docs/04-git-workflow.md。
@@ -228,7 +228,7 @@ def dry_run(rows):
 
 def main():
     ap = argparse.ArgumentParser(description="接入 GitHub 并批量创建任务 Issue")
-    ap.add_argument("--repo-url", help="远程仓库地址，如 git@github.com:you/picklight.git")
+    ap.add_argument("--repo-url", help="远程仓库地址，如 https://github.com/you/picklight.git")
     ap.add_argument("--dry-run", action="store_true", help="只预览，不联网")
     ap.add_argument("--skip-issues", action="store_true")
     ap.add_argument("--skip-protect", action="store_true")

@@ -47,7 +47,7 @@ sh scripts/setup-dev.sh     # 启用提交钩子（Windows 用 scripts/setup-dev
 远程仓库首次接通（只做一次）：
 
 ```bash
-python scripts/bootstrap_github.py --repo-url git@github.com:<账号>/picklight.git
+python scripts/bootstrap_github.py --repo-url https://github.com/<账号>/picklight.git
 ```
 
 会推送 `main`、建标签与 5 个里程碑、按任务表批量建 Issue 并尝试开启分支保护。手工命令见 `docs/04-git-workflow.md`。

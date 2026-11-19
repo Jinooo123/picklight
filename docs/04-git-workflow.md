@@ -14,13 +14,32 @@
 
 ## 2. 接入远程仓库（只需一次）
 
-先在 GitHub 建一个**空仓库**（不要勾 README、不要勾 .gitignore），然后二选一。
+先在 GitHub 建一个**空仓库**，页面上的字段这样填：
+
+| 字段 | 填什么 | 说明 |
+| --- | --- | --- |
+| Repository name | `picklight` | 全小写、用连字符；名字和本地无关，之后也能改 |
+| Description | 拾光圈：发布与浏览图文/视频动态的微信小程序，以及管理用户与内容的 Web 后台（软件工程课程期末项目） | 老师看仓库时第一眼能懂 |
+| Visibility | 见下 | 课程项目一般 Private；要分支保护就 Public |
+| Add a README file | **不勾** | 仓库里已有 README，勾了会多出一个不相关的初始提交 |
+| Add .gitignore | **None** | 已有 `.gitignore`，再选模板会把 Java/Node 规则重复叠加 |
+| Choose a license | **不勾** | 课程作业不需要；加了同样会产生额外提交 |
+
+三项初始化必须全空，否则远程已有一个提交、本地有五个提交，两边历史互不相关，`git push` 会被拒。
+
+**可见性怎么选**
+
+- `Public`：免费账号可开分支保护、Actions 不限分钟，代价是代码公开。
+- `Private`：代码不公开，但免费个人账号的私有仓库开不了分支保护（需要 Pro），只能靠提交钩子 + 评审约定兜住。
+- 随时可在 Settings → General → Danger Zone 改可见性，先建 Private 后续也能开放。
+
+然后二选一。
 
 **方式 A：脚本一次做完**（推荐，会顺带建标签、里程碑和 87 个任务 Issue）
 
 ```bash
 # 首次需要：winget install --id GitHub.cli  然后  gh auth login
-python scripts/bootstrap_github.py --repo-url git@github.com:<你的账号>/picklight.git
+python scripts/bootstrap_github.py --repo-url https://github.com/<你的账号>/picklight.git
 ```
 
 脚本行为：添加 origin → 推送 main → 建 13 个标签 → 建 5 个里程碑 → 按 `docs/tasks.csv` 建 Issue（已存在的标题会跳过）→ 尝试开启 main 保护。想先看效果加 `--dry-run`。
@@ -28,12 +47,13 @@ python scripts/bootstrap_github.py --repo-url git@github.com:<你的账号>/pick
 **方式 B：手工命令**
 
 ```bash
-git remote add origin git@github.com:<你的账号>/picklight.git
-git push -u origin main
-gh api -X PUT repos/:owner/:repo/branches/main/protection --input .github/branch-protection.json
+git remote add origin https://github.com/<你的账号>/picklight.git
+git push -u origin main        # 首次会弹浏览器登录，用 Git Credential Manager 存凭证
 ```
 
-推完在 Settings → Collaborators 邀请 6 位成员，权限选 **Write**。私有仓库的免费账号可能无法开分支保护，那就退一步：群里约定不直推，靠本地钩子和评审兜住。
+推完在 Settings → Branches 加保护规则（或 `gh api -X PUT repos/:owner/:repo/branches/main/protection --input .github/branch-protection.json`），再到 Settings → Collaborators 邀请 6 位成员，权限选 **Write**。
+
+地址用 HTTPS；要用 SSH 得先生成密钥并上传到 GitHub，本机目前没有 `~/.ssh`。私有仓库的免费账号可能开不了分支保护，那就退一步：群里约定不直推，靠本地钩子和评审兜住。
 
 ## 3. 提交信息
 
@@ -118,6 +138,7 @@ gh pr create --fill                         # 4. 开 PR（标题带 T-101）
 | 情况 | 处理 |
 | --- | --- |
 | `git push` 被拒，提示 protected branch | 你在往 `main` 推。推特性分支，然后开 PR |
+| `git push` 被拒，提示 non-fast-forward / unrelated histories | 建仓库时勾了 README 或 .gitignore。最省事是删库重建（仓库还是空的）；否则 `git pull --allow-unrelated-histories origin main` 合并后再推 |
 | 分支落后 main 有冲突 | `git switch main && git pull` 后回自己分支 `git rebase main`，冲突文件找原作者一起看 |
 | 提交了 `.env` 或密钥 | 别只删文件，密钥已进历史。告知欧阳文锦，轮换密钥，再决定是否清理历史 |
 | 提交了大文件 | `git rm --cached 文件名` 加入 `.gitignore`，用 `git commit --amend` 或后续提交修正；已推送则联系负责人处理历史 |
