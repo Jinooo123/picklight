@@ -1,0 +1,12 @@
+#!/bin/sh
+# 推送前提醒：直接推 main 会被远程保护拒绝
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main)
+      echo "提醒：正在直接推送 main。远程已开分支保护时会被拒绝；请推特性分支后开 PR。"
+      ;;
+  esac
+done
+
+exit 0

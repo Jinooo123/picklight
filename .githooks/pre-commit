@@ -1,0 +1,16 @@
+#!/bin/sh
+# 提交前检查：敏感文件、超大文件、冲突标记
+# 在 main 上直接提交只提醒不阻断（远程分支保护负责兜底）
+
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+if [ "$branch" = "main" ]; then
+  echo "提醒：当前在 main 上提交。规范是先开分支 feat/T-101-简述，再提 PR。"
+fi
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+if [ -f "$root/scripts/check-repo.sh" ]; then
+  sh "$root/scripts/check-repo.sh" --staged || exit 1
+fi
+
+exit 0

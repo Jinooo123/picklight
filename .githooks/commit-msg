@@ -1,0 +1,31 @@
+#!/bin/sh
+# 提交信息规范：type(任务编号): 说明
+# 安装由 scripts/setup-dev.sh 完成（git config core.hooksPath .githooks）
+
+msg_file="$1"
+subject=$(head -n 1 "$msg_file")
+
+case "$subject" in
+  "Merge "*|"Revert "*|"fixup!"*|"squash!"*) exit 0 ;;
+esac
+
+pattern='^(feat|fix|docs|test|chore|refactor)(\([A-Za-z0-9._/-]+\))?: .{4,}'
+
+if ! printf '%s' "$subject" | grep -Eq "$pattern"; then
+  cat >&2 <<'EOF'
+
+提交信息不符合规范，未提交。
+
+正确写法：
+  feat(T-101): 登录页与表单校验
+  fix(T-305): 连点导致重复评分
+  docs: 补第 1 周会议记录
+
+类型：feat 新功能 / fix 修缺陷 / docs 文档 / test 测试 / chore 杂务 / refactor 重构
+括号里填任务编号（docs、chore 可省略）；冒号后写清楚结果，至少 4 个字。
+
+EOF
+  exit 1
+fi
+
+exit 0

@@ -1,0 +1,51 @@
+name: 缺陷
+description: 可复现的功能错误、界面问题或环境问题。
+title: "[BUG] "
+labels: ["type/bug"]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从哪个页面开始，点了什么，输出了什么
+      placeholder: |
+        1. 登录普通账号
+        2. 进入详情页点评分 5 星
+        3. 再次点评分 3 星
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 有报错就把错误信息、接口返回贴全
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: 微信开发者工具 / Chrome 120 / Windows 11，API 本地
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 严重程度
+      options:
+        - 阻断（主流程走不通）
+        - 严重（功能错误但有绕过办法）
+        - 一般（体验或文案问题）
+    validations:
+      required: true
+  - type: input
+    id: related
+    attributes:
+      label: 相关任务编号
+      placeholder: T-305

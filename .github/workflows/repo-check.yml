@@ -1,0 +1,45 @@
+name: repo-check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    name: 提交规范与仓库卫生
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PR 标题规范
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR 标题：$TITLE"
+          if ! printf '%s' "$TITLE" | grep -Eq '^(feat|fix|docs|test|chore|refactor)(\([A-Za-z0-9._/-]+\))?: .{4,}'; then
+            echo "::error::PR 标题需形如 feat(T-101): 登录页与表单校验"
+            exit 1
+          fi
+
+      - name: 敏感文件与超大文件
+        run: sh scripts/check-repo.sh
+
+      - name: 任务表与文档数量核对
+        run: |
+          count=$(python3 - <<'PY'
+          import csv
+          rows = list(csv.DictReader(open("docs/tasks.csv", encoding="utf-8-sig")))
+          print(len(rows))
+          PY
+          )
+          echo "任务数：$count"
+          if [ "$count" -lt 1 ]; then
+            echo "::error::docs/tasks.csv 为空或无法解析"
+            exit 1
+          fi
