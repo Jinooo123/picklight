@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-项目处于启动阶段。已完成需求范围、初步设计、七人任务和至 12 月 26 日的进度基线；前后端功能尚未实现。老师提供的 Word 文件保留在仓库根目录，作为文档格式参考。
+第 1 周（2026-11-21 起）。已完成需求范围、架构初稿、七人分工、任务分解（87 项 / 318 人时）与 Git 协作规范；三端骨架与业务功能尚未开始，按 `docs/07-week1-plan.md` 推进。
 
 ## 交付范围
 
@@ -21,7 +21,7 @@
 | 服务端 | Java 17、Spring Boot 3、Spring Security、MyBatis-Plus |
 | 数据 | MySQL 8；开发环境的媒体文件存储在本地目录，路径由服务端管理 |
 
-微信小程序 + Vue/uni-app 方向已确认；服务端、数据库与后台组件库为初步建议，第一周组内评审后冻结。
+微信小程序 + Vue/uni-app 方向已确认；服务端、数据库与后台组件库为初步建议，第一周组会评审后冻结。
 
 ## 目录
 
@@ -29,8 +29,28 @@
 apps/miniprogram/    用户小程序
 apps/admin/          管理 Web
 services/api/        REST API 与数据库迁移
-docs/                需求、设计、分工、协作与测试计划
+docs/                需求、设计、任务分解、协作与测试计划
+scripts/             任务表生成、仓库检查、环境初始化、GitHub 接入
+.githooks/           提交信息与仓库卫生钩子
+.github/             Issue / PR 模板、CI、分支保护配置
 ```
+
+## 快速开始
+
+```bash
+git clone <仓库地址> && cd <仓库名>
+sh scripts/setup-dev.sh     # 启用提交钩子（Windows 用 scripts/setup-dev.ps1）
+```
+
+然后从 `docs/06-task-breakdown.md` 挑自己名下的任务，开分支 `feat/T-101-简述`，提交 `feat(T-101): 说明`。
+
+远程仓库首次接通（只做一次）：
+
+```bash
+python scripts/bootstrap_github.py --repo-url git@github.com:<账号>/picklight.git
+```
+
+会推送 `main`、建标签与 5 个里程碑、按任务表批量建 Issue 并尝试开启分支保护。手工命令见 `docs/04-git-workflow.md`。
 
 ## 项目文档
 
@@ -38,14 +58,16 @@ docs/                需求、设计、分工、协作与测试计划
 - [需求分析](docs/01-requirements.md)
 - [系统设计](docs/02-architecture.md)
 - [七人分工与进度（内部目标 2026-12-26）](docs/03-team-schedule.md)
+- [任务分解 WBS（87 项，含验收标准）](docs/06-task-breakdown.md)
+- [第 1 周执行计划（逐日）](docs/07-week1-plan.md)
 - [Git 协作规范](docs/04-git-workflow.md)
 - [测试计划](docs/05-test-plan.md)
+- [任务清单 CSV（可导入腾讯文档/Excel）](docs/tasks.csv)
 - [项目启动汇报 PPT](presentation/拾光圈-项目启动汇报-2026-11-20.pptx)
 
-## 启动约定
+## 约定
 
-1. 欧阳文锦自行创建 GitHub 或 Gitee 空仓库后，添加 `origin` 并推送 `main`。
-2. 七位成员在组会确认分工文档中的模块负责人及技术细节。
-3. 第一周以用户故事、页面原型、API 契约、数据库设计和可运行骨架为验收目标。
-
-不要提交数据库密码、微信密钥、真实用户数据或上传的媒体文件。配置示例应使用占位值。
+1. `main` 不直推，一项任务一个分支一个 PR，至少一人评审后 squash 合并。
+2. 任务范围要改，先改 `scripts/gen_task_docs.py` 再重新生成，不要只改 Issue 标题。
+3. 不要提交数据库密码、微信密钥、真实用户数据或上传的媒体文件。配置示例应使用占位值。
+4. 正式截止 2027-01-03，组内目标 2026-12-26 冻结代码，留一周缓冲。
