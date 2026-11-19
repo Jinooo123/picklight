@@ -74,7 +74,7 @@ python scripts/bootstrap_github_api.py --repo Jinooo123/picklight
 
 ## 约定
 
-1. `main` 不直推，一项任务一个分支一个 PR，至少一人评审后 squash 合并。
+1. `main` 不直推，一项任务一个分支一个 PR，自己确认能跑后用 squash 合并；有人有空就看一眼，不强制。
 2. 任务范围要改，先改 `scripts/gen_task_docs.py` 再重新生成，不要只改 Issue 标题。
 3. 不要提交数据库密码、微信密钥、真实用户数据或上传的媒体文件。
 4. 正式截止 2027-01-03，组内目标 2026-12-26 冻结代码，留一周缓冲。
