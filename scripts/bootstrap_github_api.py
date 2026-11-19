@@ -24,7 +24,7 @@ import tempfile
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from bootstrap_github import EXTRA_LABELS, PROTECTION, issue_body, load_tasks  # noqa: E402
+from task_lib import EXTRA_LABELS, PROTECTION, issue_body, load_tasks  # noqa: E402
 
 API = "https://api.github.com"
 TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
@@ -214,9 +214,23 @@ def protect_main():
 slug_holder = [""]
 
 
+def normalize_repo(value: str) -> str:
+    """允许传 owner/repo，也允许传 git@github.com:owner/repo.git 这类地址。"""
+    s = (value or "").strip().rstrip("/")
+    if s.endswith(".git"):
+        s = s[:-4]
+    if "://" in s or s.startswith("git@"):
+        s = s.replace("git@", "").replace("https://", "").replace("http://", "").replace("ssh://", "")
+        s = s.replace(":", "/", 1)
+        parts = [x for x in s.split("/") if x]
+        if len(parts) >= 3:
+            return f"{parts[1]}/{parts[2]}"
+    return s
+
+
 def main():
     ap = argparse.ArgumentParser(description="用 REST API 初始化 GitHub 仓库")
-    ap.add_argument("--repo", required=True, help="owner/repo，如 Jinooo123/picklight")
+    ap.add_argument("--repo", required=True, help="owner/repo 或仓库地址，如 Jinooo123/picklight")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--skip-issues", action="store_true")
     ap.add_argument("--skip-protect", action="store_true")
@@ -224,7 +238,7 @@ def main():
 
     global TOKEN
     rows = load_tasks()
-    slug_holder[0] = args.repo.strip().rstrip("/")
+    slug_holder[0] = normalize_repo(args.repo)
 
     if args.dry_run:
         print(f"仓库 {slug_holder[0]}；任务 {len(rows)} 项；标签 {len(EXTRA_LABELS)} 个；"

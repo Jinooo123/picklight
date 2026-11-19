@@ -7,7 +7,7 @@
 
 会同时刷新：
     docs/06-task-breakdown.md   人读的任务板
-    docs/tasks.csv              可导入腾讯文档/Excel，也可被 scripts/bootstrap_github.py 读取
+    docs/tasks.csv              可导入腾讯文档/Excel，也可被 scripts/bootstrap_github_api.py 读取
 
 任务粒度约定：单项 2-6 小时，一个人一到两天能交付，验收标准可勾选。
 """
