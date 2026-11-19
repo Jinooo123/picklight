@@ -70,6 +70,7 @@ python scripts/bootstrap_github_api.py --repo Jinooo123/picklight
 - [分工与进度](docs/03-team-schedule.md) · [Git 协作规范](docs/04-git-workflow.md) · [测试计划](docs/05-test-plan.md)
 - [任务分解 WBS（87 项，含验收标准）](docs/06-task-breakdown.md) · [第 1 周执行计划](docs/07-week1-plan.md)
 - [团队上手与开发规范](docs/11-团队上手与开发规范.md)
+- [第一次完成任务（新人照着做）](docs/12-第一次完成任务.md)
 - [任务清单 CSV](docs/tasks.csv) · [汇报 PPT](presentation/)
 
 ## 约定
