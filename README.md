@@ -39,6 +39,7 @@ docs/                需求、设计、分工、协作与测试计划
 - [七人分工与进度（内部目标 2026-12-26）](docs/03-team-schedule.md)
 - [Git 协作规范](docs/04-git-workflow.md)
 - [测试计划](docs/05-test-plan.md)
+- [项目启动汇报 PPT](presentation/拾光圈-项目启动汇报-2026-11-20.pptx)
 
 ## 启动约定
 

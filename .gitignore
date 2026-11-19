@@ -29,6 +29,7 @@ uploads/
 
 # Presentation build previews
 .ppt-build/
+.codex-finalizer/
 
 # Local agent planning notes
 task_plan.md
