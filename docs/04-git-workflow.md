@@ -35,11 +35,11 @@
 
 然后二选一。
 
-**方式 A：脚本一次做完**（推荐，会顺带建标签、里程碑和 87 个任务 Issue）
+**方式 A：脚本一次做完**（推荐，会顺带建标签、里程碑和 87 个任务 Issue；用 curl 走 REST，不依赖 gh）
 
 ```bash
-# 首次需要：winget install --id GitHub.cli  然后  gh auth login
-python scripts/bootstrap_github.py --repo-url https://github.com/<你的账号>/picklight.git
+# 需要 classic token（勾 repo），放进环境变量 GH_TOKEN
+python scripts/bootstrap_github_api.py --repo https://github.com/<你的账号>/picklight.git
 ```
 
 脚本行为：添加 origin → 推送 main → 建 13 个标签 → 建 5 个里程碑 → 按 `docs/tasks.csv` 建 Issue（已存在的标题会跳过）→ 尝试开启 main 保护。想先看效果加 `--dry-run`。
