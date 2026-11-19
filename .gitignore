@@ -1,0 +1,36 @@
+# IDE and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.yaml
+*.pem
+*.key
+
+# Dependencies and builds
+node_modules/
+dist/
+build/
+target/
+.gradle/
+*.log
+
+# Uploaded media and local databases
+uploads/
+*.db
+*.sqlite
+
+# Presentation build previews
+.ppt-build/
+
+# Local agent planning notes
+task_plan.md
+findings.md
+progress.md
