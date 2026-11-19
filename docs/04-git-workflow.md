@@ -144,3 +144,57 @@ gh pr create --fill                         # 4. 开 PR（标题带 T-101）
 | 提交了大文件 | `git rm --cached 文件名` 加入 `.gitignore`，用 `git commit --amend` 或后续提交修正；已推送则联系负责人处理历史 |
 | 钩子没生效 | 运行 `git config core.hooksPath`，应为 `.githooks`；不是就重跑 `scripts/setup-dev.sh` |
 | 忘了开分支，已在 main 上提交 | 提交还没推就从 main 切分支：`git switch -c feat/T-xxx`，main 回退到 origin/main |
+| `Failed to connect to github.com port 443` | 校园网到 GitHub 被拦，见第 9 节 |
+
+## 9. 校园网连不上 GitHub 时
+
+在校园网实测：`github.com` 被 DNS 解析到 `20.247.166.64`，这个地址 TCP 超时；换 `140.82.112.3`、`140.82.113.3` 可通，`ssh.github.com:443` 也可通。以下三种接入方式按稳定性排序。
+
+**方式一：SSH 走 443 端口（推荐，全组统一用这个）**
+
+`ssh.github.com:443` 不依赖 `github.com` 的解析，实测可通，也不受代理软件开关影响。
+
+```bash
+ssh-keygen -t ed25519 -C "你的邮箱"        # 一路回车；已有密钥可跳过
+cat ~/.ssh/id_ed25519.pub                   # 复制输出，粘到 GitHub → Settings → SSH and GPG keys
+```
+
+在 `~/.ssh/config`（Windows 为 `C:\Users\<用户名>\.ssh\config`）写入：
+
+```text
+Host github.com
+  HostName ssh.github.com
+  Port 443
+  User git
+```
+
+验证并切换到 SSH 地址：
+
+```bash
+ssh -T git@github.com                      # 出现 successfully authenticated 即可
+git remote set-url origin git@github.com:Jinooo123/picklight.git
+```
+
+**方式二：本地代理**
+
+装了 Clash / v2rayN 等工具时，把 git 指到它的本地端口（以 Clash 的 7890 为例）：
+
+```bash
+git config --global http.proxy http://127.0.0.1:7890
+git config --global https.proxy http://127.0.0.1:7890
+# 取消：git config --global --unset http.proxy && git config --global --unset https.proxy
+```
+
+**方式三：改 hosts 指向可用 IP**
+
+需要管理员权限编辑 `C:\Windows\System32\drivers\etc\hosts`，加一行 `140.82.112.3 github.com`。能用但 IP 会变，失效后再换，只当临时手段。
+
+自检命令（哪一步不通就换下一种方式）：
+
+```bash
+nslookup github.com                        # 看解析出的 IP
+curl -sS -o /dev/null -w "%{http_code}\n" --max-time 8 https://github.com
+ssh -T git@github.com
+```
+
+全组务必用同一种方式，否则讨论「我这边能推你那边不能推」会浪费时间。若校园网长期不稳定，把仓库迁到 Gitee 也是可选项，只需改 `origin` 地址，仓库结构、分支与提交历史都不变。
