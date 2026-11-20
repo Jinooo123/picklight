@@ -154,3 +154,402 @@
 - T-705（黄佳佳）：使用第 4 节文案与字段，后台骨架已同步口径说明。
 
 本任务交付的是统计定义与接口约定，未实现评分、评论、统计查询或数据库迁移。
+
+## 7. T-003 全局约定
+
+本节至第 14 节为联合评审稿。第 1–6 节为许峻舆交付的 T-902 统计子契约。接口标题均省略 `/api/v1` 前缀。业务请求体默认使用 JSON，上传使用 multipart/form-data。路径中的 id 为正整数。登录后发送 `Authorization: Bearer <token>`，由服务端校验身份、角色、账号状态和资源归属。管理员接口统一要求有效 ADMIN 身份。所有示例中的账号、令牌和媒体链接仅供说明。
+
+### 7.1 响应和错误
+
+- HTTP 200 成功体统一为 `{"code":0,"message":"成功","data":...}`，无业务数据时 `data:null`。
+- 失败同样使用 `code/message/data`。普通业务错误的 data 为 null。按 T-401，字段校验错误（HTTP 400 / 40001）的 data 为字段名到第一条可读错误的映射。参数类型不匹配（400 / 40000）的 data 可为参数名字符串。错误详情放在 data 内。统计错误仍按第 1 节返回 null。
+- HTTP 400 表示输入或请求格式错误，401 表示未登录、会话失效或凭据错误，403 表示权限不足或账号禁用，404 表示资源不存在或公开不可见，409 表示状态或唯一性冲突，500 表示未预期的服务端异常。通用业务码依次为 40000、40100、40300、40400、40900、50000。页面使用业务 code 判断分支，使用 message 显示提示。
+
+### 7.2 分页和查询
+
+- 分页查询统一使用正整数 page、pageSize。提案为从第 1 页起，默认第 1 页、每页 20 条，取值上限待组内确认。参数非法返回 HTTP 400。返回 `data.items/page/pageSize/total`，total 为筛选后的总数。空结果或越界页返回空 items 数组，保留页码和总数。统计 daily 沿用按日期区间返回，无需分页。
+- JSON 字段使用 camelCase，业务时间戳用带偏移的 ISO 8601。日期参数使用 YYYY-MM-DD，首尾都包含。拟按北京时间自然日解释，只传一端时使用开放区间。标签筛选示例为 `?tags=校园&tags=摄影`。日期单端语义、时区和查询编码待组内确认。
+- 示例中的字段名、类型和承载方式为评审提案，详见第 14 节。接口示例描述预期行为，供两端联调和各实现任务验收。
+
+## 8. 账号
+
+### 8.1 `POST /auth/register`
+
+**请求**　游客。JSON 必填 username（字符串，当前按唯一用户名示例）、password（字符串，8–25 位）。首周演示要求注册成功自动登录，成功体与登录一致。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"token":"example-token","user":{"id":42,"username":"xiaoming","role":"USER","status":"ACTIVE"}}}
+```
+
+**错误响应示例**
+
+- HTTP 409 `{"code":40901,"message":"用户名已被占用","data":null}`
+- HTTP 400 `{"code":40001,"message":"参数校验失败","data":{"password":"密码长度须为 8–25 位"}}`
+
+### 8.2 `POST /auth/login`
+
+**请求**　游客。JSON 必填 username、password（字符串）；管理端共用此接口，管理接口仍由服务端检查 ADMIN 权限。凭据错误统一提示。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"token":"example-token","user":{"id":42,"username":"xiaoming","role":"USER","status":"ACTIVE"}}}
+```
+
+**错误响应示例**
+
+- HTTP 401 `{"code":40101,"message":"用户名或密码错误","data":null}`
+- HTTP 403 `{"code":40301,"message":"账号已被禁用","data":null}`
+
+### 8.3 `GET /me`
+
+**请求**　登录用户。无路径参数、查询参数和请求体；身份取自 Bearer token。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":42,"username":"xiaoming","role":"USER","status":"ACTIVE"}}
+```
+
+**错误响应示例**
+
+- HTTP 401 `{"code":40100,"message":"未登录或登录已过期","data":null}`
+- HTTP 403 `{"code":40301,"message":"账号已被禁用","data":null}`
+
+### 8.4 `PUT /me/password`
+
+**请求**　登录用户。JSON 必填 oldPassword、newPassword（字符串，新密码 8–25 位且不能与旧密码相同）。成功后旧 token 不得继续用于受保护操作，客户端重新登录。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":null}
+```
+
+**错误响应示例**
+
+- HTTP 400 `{"code":40002,"message":"旧密码不正确","data":null}`
+- HTTP 400 `{"code":40001,"message":"参数校验失败","data":{"newPassword":"新密码不能与旧密码相同"}}`
+
+退出登录属于 FR-01。待组内确认客户端清除登录态是否足够，以及是否需要服务端撤销 token。退出路径和响应随决策冻结。
+
+## 9. 动态
+
+### 9.1 `GET /posts`
+
+**请求**　查询 page、pageSize，可选 startDate、endDate（YYYY-MM-DD，含首尾）、tags（标签名称，示例以重复查询参数传递）。日期与标签取交集，多标签全部匹配；仅返回 PUBLISHED，按 createdAt 倒序。无请求体。游客权限待组内确认。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"items":[{"id":101,"authorId":42,"body":"校园随手拍","tags":["校园"],"media":[{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}],"status":"PUBLISHED","createdAt":"2026-11-20T10:00:00+08:00","updatedAt":"2026-11-20T10:00:00+08:00"}],"page":1,"pageSize":20,"total":1}}
+```
+
+**错误响应示例**
+
+- HTTP 400 `{"code":40000,"message":"日期区间无效","data":null}`
+- HTTP 500 `{"code":50000,"message":"服务内部错误","data":null}`
+
+### 9.2 `GET /posts/{id}`
+
+**请求**　路径 id（正整数，动态 ID）。无查询参数及请求体。公开详情仅返回 PUBLISHED；游客权限待组内确认。评分、评论计数无数据时为 0。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":101,"authorId":42,"body":"校园随手拍","tags":["校园"],"media":[{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}],"status":"PUBLISHED","createdAt":"2026-11-20T10:00:00+08:00","updatedAt":"2026-11-20T10:00:00+08:00","averageScore":0,"ratingCount":0,"commentCount":0}}
+```
+
+**错误响应示例**
+
+- HTTP 400 `{"code":40000,"message":"动态 ID 无效","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+### 9.3 `POST /posts`
+
+**请求**　登录用户。JSON 可含 body（字符串，最长 2000 字）、tags（字符串数组，去重后 0–5 个）、mediaIds（媒体标识数组）。正文与媒体至少一项非空；多图或单视频，不混发。仅引用本人上传的媒体，失败时整体回滚。例如 `{"body":"校园随手拍","tags":["校园"],"mediaIds":[81]}`。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":101,"authorId":42,"body":"校园随手拍","tags":["校园"],"media":[{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}],"status":"PUBLISHED","createdAt":"2026-11-20T10:00:00+08:00","updatedAt":"2026-11-20T10:00:00+08:00","averageScore":0,"ratingCount":0,"commentCount":0}}
+```
+
+**错误响应示例**
+
+- HTTP 400 `{"code":40000,"message":"正文和媒体不能同时为空","data":null}`
+- HTTP 403 `{"code":40300,"message":"不能引用他人上传的媒体","data":null}`
+
+### 9.4 `PUT /posts/{id}`
+
+**请求**　作者。路径 id（正整数）；JSON 提交编辑后的完整 body、tags、mediaIds，类型和约束同发布，清空可用空字符串或空数组，整体仍需有正文或媒体。成功后列表与详情一致。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":101,"authorId":42,"body":"更新后的正文","tags":["校园"],"media":[{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}],"status":"PUBLISHED","createdAt":"2026-11-20T10:00:00+08:00","updatedAt":"2026-11-20T10:30:00+08:00","averageScore":0,"ratingCount":0,"commentCount":0}}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+### 9.5 `DELETE /posts/{id}`
+
+**请求**　作者。路径 id（正整数），无查询参数及请求体。按当前逻辑删除方案处理，公开列表和详情不再可见。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":null}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+### 9.6 `GET /me/posts`
+
+**请求**　登录用户。查询 page、pageSize，可选 status（PUBLISHED、HIDDEN、DELETED）。身份取自 token，仅返回本人记录，按当前设计可查看各状态。无请求体。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"items":[{"id":101,"authorId":42,"body":"校园随手拍","tags":["校园"],"media":[{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}],"status":"PUBLISHED","createdAt":"2026-11-20T10:00:00+08:00","updatedAt":"2026-11-20T10:00:00+08:00"}],"page":1,"pageSize":20,"total":1}}
+```
+
+**错误响应示例**
+
+- HTTP 401 `{"code":40100,"message":"未登录或登录已过期","data":null}`
+- HTTP 400 `{"code":40000,"message":"动态状态无效","data":null}`
+
+### 9.7 `GET /tags`
+
+**请求**　登录用户。无路径参数、查询参数和请求体。返回可供筛选的标签名称；无标签时为空数组。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":["校园"]}
+```
+
+**错误响应示例**
+
+- HTTP 401 `{"code":40100,"message":"未登录或登录已过期","data":null}`
+- HTTP 500 `{"code":50000,"message":"服务内部错误","data":null}`
+
+## 10. 媒体
+
+### 10.1 `POST /media/uploads`
+
+**请求**　登录用户。multipart/form-data 必填 file（二进制，单次一个文件）。T-502 任务列出 jpg/png/webp/mp4 白名单；最终格式和限制以 T-011 实测及评审为准。超限或不支持文件拒绝落盘；服务端生成标识和可访问 URL。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}}
+```
+
+**错误响应示例**
+
+- HTTP 400 `{"code":40010,"message":"文件超出大小限制","data":null}`
+- HTTP 400 `{"code":40011,"message":"不支持的文件类型","data":null}`
+
+## 11. 评分评论
+
+### 11.1 `PUT /posts/{id}/rating`
+
+**请求**　登录用户。路径 id（正整数，动态 ID）；JSON 必填 score（1–5 的整数）。只能给他人的动态评分；同用户同动态重复提交覆盖原分值，返回最新平均分与人数。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"averageScore":4,"ratingCount":1}}
+```
+
+**错误响应示例**
+
+- HTTP 400 `{"code":40003,"message":"评分须在 1-5 之间","data":null}`
+- HTTP 403 `{"code":40302,"message":"不能给自己的动态评分","data":null}`
+
+### 11.2 `GET /posts/{id}/comments`
+
+**请求**　路径 id（正整数，动态 ID）；查询 page、pageSize；无请求体。仅返回公开可见动态下未删除的评论。游客读取权限与动态详情一致，待组内确认。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"items":[{"id":301,"postId":101,"authorId":43,"body":"拍得不错","createdAt":"2026-11-20T10:00:00+08:00"}],"page":1,"pageSize":20,"total":1}}
+```
+
+**错误响应示例**
+
+- HTTP 400 `{"code":40000,"message":"分页参数无效","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+### 11.3 `POST /posts/{id}/comments`
+
+**请求**　登录用户。路径 id（正整数，动态 ID）；JSON 必填 body（非空字符串，长度上限待组内确认）。仅可对可见动态发表评论。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":301,"postId":101,"authorId":43,"body":"拍得不错","createdAt":"2026-11-20T10:00:00+08:00"}}
+```
+
+**错误响应示例**
+
+- HTTP 401 `{"code":40100,"message":"未登录或登录已过期","data":null}`
+- HTTP 400 `{"code":40001,"message":"参数校验失败","data":{"body":"评论不能为空"}}`
+
+### 11.4 `DELETE /comments/{id}`
+
+**请求**　评论作者。路径 id（正整数，评论 ID）；无查询参数及请求体。管理员处理评论使用管理接口。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":null}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+若启用 FR-10，发布和编辑正文以及发表评论时，服务端命中敏感词应拒绝写入并返回明确提示。是否启用及业务错误码待组内确认。
+
+## 12. 管理
+
+### 12.1 `GET /admin/users`
+
+**请求**　管理员。查询 page、pageSize，可选 username（字符串）、status（账号状态）、role（USER 或 ADMIN）。筛选条件可组合。无请求体。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"items":[{"id":42,"username":"xiaoming","role":"USER","status":"ACTIVE"}],"page":1,"pageSize":20,"total":1}}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 400 `{"code":40000,"message":"角色筛选值无效","data":null}`
+
+### 12.2 `PATCH /admin/users/{id}/status`
+
+**请求**　管理员。路径 id（正整数，用户 ID）；JSON 必填 status，示例值 ACTIVE（恢复）、DISABLED（禁用）、DELETED（逻辑删除）。操作记录操作者、对象、动作与时间。禁用后拒绝旧 token，恢复后允许重新登录。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":42,"username":"xiaoming","role":"USER","status":"DISABLED"}}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+### 12.3 `GET /admin/posts`
+
+**请求**　管理员。查询 page、pageSize，可选 authorId（正整数）、startDate、endDate（YYYY-MM-DD，含首尾）、tags（同动态列表）、status（PUBLISHED、HIDDEN、DELETED）。条件可组合。无请求体。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"items":[{"id":101,"authorId":42,"body":"校园随手拍","tags":["校园"],"media":[{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}],"status":"PUBLISHED","createdAt":"2026-11-20T10:00:00+08:00","updatedAt":"2026-11-20T10:00:00+08:00"}],"page":1,"pageSize":20,"total":1}}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 400 `{"code":40000,"message":"日期区间无效","data":null}`
+
+### 12.4 `GET /admin/posts/{id}`
+
+**请求**　管理员。路径 id（正整数，动态 ID）；可选 commentPage、commentPageSize（评论分页，规则同 page、pageSize）。无请求体。详情供后台查看正文、媒体及评论，可查看下架或逻辑删除的动态；管理详情路径和评论承载方式待组内确认。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":101,"authorId":42,"body":"校园随手拍","tags":["校园"],"media":[{"id":81,"url":"https://media.example.com/81.jpg","mediaType":"IMAGE"}],"status":"PUBLISHED","createdAt":"2026-11-20T10:00:00+08:00","updatedAt":"2026-11-20T10:00:00+08:00","averageScore":0,"ratingCount":0,"commentCount":1,"comments":{"items":[{"id":301,"postId":101,"authorId":43,"body":"拍得不错","createdAt":"2026-11-20T10:00:00+08:00"}],"page":1,"pageSize":20,"total":1}}}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+### 12.5 `PATCH /admin/posts/{id}/status`
+
+**请求**　管理员。路径 id（正整数，动态 ID）；JSON 必填 status（HIDDEN 下架、PUBLISHED 恢复、DELETED 逻辑删除）。状态变更写管理操作记录；下架或逻辑删除后公开接口不可见。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":{"id":101,"status":"HIDDEN"}}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+### 12.6 `DELETE /admin/comments/{id}`
+
+**请求**　管理员。路径 id（正整数，评论 ID）；无查询参数及请求体。管理员可删除违规评论并记录操作。
+
+**成功响应（HTTP 200）**
+
+```json
+{"code":0,"message":"成功","data":null}
+```
+
+**错误响应示例**
+
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 404 `{"code":40400,"message":"资源不存在","data":null}`
+
+## 13. 统计接口补充示例
+
+### 13.1 `GET /admin/stats/overview`
+
+请求无参数和请求体。成功响应见第 2.3 节。
+
+**错误响应示例**
+
+- HTTP 401 `{"code":40100,"message":"未登录或登录已过期","data":null}`
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+
+### 13.2 `GET /admin/stats/daily`
+
+请求无请求体。第 2.4 节的成功响应对应 `?startDate=2026-11-19&endDate=2026-11-20`，两项均省略时返回默认近 7 日。
+
+**错误响应示例**
+
+- HTTP 401 `{"code":40100,"message":"未登录或登录已过期","data":null}`
+- HTTP 403 `{"code":40300,"message":"无权限执行此操作","data":null}`
+- HTTP 400 `{"code":40000,"message":"startDate 和 endDate 必须同时提供","data":null}`
+
+## 14. 待组内确认与签字
+
+| 待组内确认 | 评审事项 |
+| --- | --- |
+| 账号与登录态 | 账号标识最终形式、注册后的登录响应字段、token 有效期、退出是否需服务端撤销、改密与禁用后的会话失效方案、账号状态枚举及允许的状态转换。 |
+| 浏览与删除 | 是否开放游客读动态、详情和评论。若只允许登录用户浏览，未登录返回 401。删除按需求的默认逻辑删除方案拟定，管理端可见范围和最终验收策略待确认。 |
+| 媒体 | 根据 T-011 实测确定图片张数、单文件体积、视频时长和格式，确认媒体 ID 类型及上传字段。 |
+| 查询与管理详情 | 页码起点、默认值、每页上限、标签参数编码、业务日期时区和单端范围语义，管理详情路径与评论分页承载方式。 |
+| 请求与响应字段 | 冻结评审稿中的字段和响应示例，确认评论长度、是否启用 FR-10 及对应错误码。 |
+
+前后端三方评审后填写确认人、日期和结论，并将确认后的契约同步小程序与管理 Web。
+
+| 确认方 | 确认人 | 日期 | 结论 |
+| --- | --- | --- | --- |
+| 服务端 |  |  | 待确认 |
+| 微信小程序 |  |  | 待确认 |
+| 管理 Web |  |  | 待确认 |
