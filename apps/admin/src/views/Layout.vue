@@ -29,7 +29,7 @@ function logout() {
 
 <style scoped>
 .layout { height: 100vh; }
-.aside { background: #FFFFFF; border-right: 1px solid #EDEDED; }
-.brand { height: 56px; line-height: 56px; padding-left: 20px; font-size: 16px; font-weight: 500; color: #147E70; }
-.header { display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; border-bottom: 1px solid #EDEDED; }
+.aside { background: var(--el-bg-color); border-right: 1px solid var(--el-border-color-lighter); }
+.brand { height: 56px; line-height: 56px; padding-left: 20px; font-size: var(--el-font-size-medium); font-weight: 500; color: var(--el-color-primary); }
+.header { display: flex; align-items: center; justify-content: space-between; background: var(--el-bg-color); border-bottom: 1px solid var(--el-border-color-lighter); }
 </style>

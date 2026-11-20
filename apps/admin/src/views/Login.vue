@@ -40,8 +40,8 @@ async function onSubmit() {
 </script>
 
 <style scoped>
-.wrap { height: 100vh; display: flex; align-items: center; justify-content: center; background: #F5F6F7; }
+.wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--el-bg-color-page); padding: 16px; box-sizing: border-box; }
 .box { width: 380px; }
-h2 { margin: 0 0 20px; font-size: 18px; font-weight: 500; color: #147E70; }
+h2 { margin: 0 0 20px; font-size: var(--el-font-size-large); font-weight: 500; color: var(--el-color-primary); }
 .btn { width: 100%; margin-top: 12px; }
 </style>

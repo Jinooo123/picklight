@@ -29,8 +29,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.label { font-size: 13px; color: #526761; }
+.label { font-size: var(--el-font-size-small); color: var(--el-text-color-secondary); }
 .value { font-size: 28px; font-weight: 500; margin-top: 8px; }
 .chart { margin-top: 16px; }
-.tip { font-size: 13px; color: #8A8A8A; }
+.tip { font-size: var(--el-font-size-small); color: var(--el-text-color-secondary); }
 </style>
