@@ -126,6 +126,21 @@ test('public login requests send no stored token and their 401 does not invalida
   assert.deepEqual(session.messages, ['用户名或密码错误'])
 })
 
+test('session checks keep Authorization but leave 401 navigation to the guard', async (t) => {
+  let authorization
+  const { client, session } = await fixture(t, (request, response) => {
+    authorization = request.headers.authorization
+    json(response, 401, { code: 40100, message: '登录已过期' })
+  })
+  await assert.rejects(client.get('/me', { silent: true, handleUnauthorized: false }),
+    (error) => error.response.status === 401)
+  assert.equal(authorization, 'Bearer test-session-a')
+  assert.equal(session.token, 'test-session-a')
+  assert.equal(session.cleared, 0)
+  assert.equal(session.redirected, 0)
+  assert.deepEqual(session.messages, [])
+})
+
 test('timeout prompts a manual retry and never repeats a write request', async (t) => {
   let requests = 0
   const { client, session } = await fixture(t, (_request, response) => {
