@@ -66,12 +66,12 @@ function serverMessage(data) {
 }
 
 function httpErrorMessage(statusCode, data) {
+  if (statusCode >= 500) return '服务暂时不可用，请稍后重试'
   const message = serverMessage(data)
   if (message) return message
   if (statusCode === 401) return '登录已失效，请重新登录'
   if (statusCode === 403) return '没有权限执行此操作'
   if (statusCode === 404) return '请求的资源不存在'
-  if (statusCode >= 500) return '服务暂时不可用，请稍后重试'
   return '请求失败，请稍后重试'
 }
 
