@@ -94,13 +94,14 @@ function handleUnauthorized(requestToken) {
   // A delayed response from an old session must not clear a newer token.
   if (currentToken !== requestToken) {
     unauthorizedHandled = false
-    return
+    return false
   }
 
-  if (unauthorizedHandled) return
+  if (unauthorizedHandled) return false
   unauthorizedHandled = true
   clearToken()
   requestConfig.onUnauthorized()
+  return true
 }
 
 function notify(message, options) {
@@ -174,8 +175,9 @@ export function request(options = {}) {
           responseData: body
         })
 
-        if (statusCode === 401 && !skipAuth) handleUnauthorized(requestToken)
-        notify(message, { silent })
+        const shouldNotify =
+          statusCode !== 401 || skipAuth || handleUnauthorized(requestToken)
+        if (shouldNotify) notify(message, { silent })
         reject(error)
       },
       fail(rawError) {
