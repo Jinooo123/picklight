@@ -1,6 +1,45 @@
-/* 色板与字号基线，详见 docs/09-ui-baseline.md（T-008） */
+/* T-008: shared values and usage are documented in docs/09-ui-baseline.md. */
 $brand: #147E70;
+$brand-light: #E8F2F1;
+$brand-dark: #10655A;
+$success: #228552;
+$warning: #99610C;
+$danger: #C23F45;
 $text-main: #1F2A26;
 $text-muted: #526761;
+$text-placeholder: #6B7B76;
+$text-disabled: #9CAAA5;
+$text-inverse: #FFFFFF;
 $bg-page: #F5F6F7;
+$bg-surface: #FFFFFF;
+$border: #DDE5E1;
+$divider: #E9EEEB;
+
+$font-caption: 24rpx;
+$font-help: 26rpx;
+$font-base: 28rpx;
+$font-body: 32rpx;
+$font-title: 36rpx;
+$font-metric: 56rpx;
+$line-height: 1.5;
+$space-xs: 8rpx;
+$space-sm: 16rpx;
+$space-md: 24rpx;
+$space-lg: 32rpx;
+$space-xl: 48rpx;
+$space-xxl: 64rpx;
 $radius: 16rpx;
+$control-height: 88rpx;
+
+/* uni-app built-in components can consume the same palette. */
+$uni-color-primary: $brand;
+$uni-color-success: $success;
+$uni-color-warning: $warning;
+$uni-color-error: $danger;
+$uni-text-color: $text-main;
+$uni-text-color-grey: $text-muted;
+$uni-text-color-placeholder: $text-placeholder;
+$uni-text-color-disable: $text-disabled;
+$uni-bg-color: $bg-surface;
+$uni-bg-color-grey: $bg-page;
+$uni-border-color: $border;

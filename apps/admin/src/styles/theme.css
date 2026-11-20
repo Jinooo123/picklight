@@ -1,0 +1,66 @@
+/* T-008: use Element Plus theme variables; see docs/09-ui-baseline.md. */
+:root {
+  --el-color-primary: #147E70;
+  --el-color-primary-light-3: #5BA59B;
+  --el-color-primary-light-5: #8ABFB8;
+  --el-color-primary-light-7: #B9D8D4;
+  --el-color-primary-light-8: #D0E5E2;
+  --el-color-primary-light-9: #E8F2F1;
+  --el-color-primary-dark-2: #10655A;
+  --el-color-success: #228552;
+  --el-color-success-light-3: #64AA86;
+  --el-color-success-light-5: #91C2A9;
+  --el-color-success-light-7: #BDDACB;
+  --el-color-success-light-8: #D3E7DC;
+  --el-color-success-light-9: #E9F3EE;
+  --el-color-success-dark-2: #1B6A42;
+  --el-color-warning: #99610C;
+  --el-color-warning-light-3: #B89055;
+  --el-color-warning-light-5: #CCB086;
+  --el-color-warning-light-7: #E0D0B6;
+  --el-color-warning-light-8: #EBDFCE;
+  --el-color-warning-light-9: #F5EFE7;
+  --el-color-warning-dark-2: #7A4E0A;
+  --el-color-danger: #C23F45;
+  --el-color-danger-light-3: #D4797D;
+  --el-color-danger-light-5: #E19FA2;
+  --el-color-danger-light-7: #EDC5C7;
+  --el-color-danger-light-8: #F3D9DA;
+  --el-color-danger-light-9: #F9ECEC;
+  --el-color-danger-dark-2: #9B3237;
+  --el-color-info: #526761;
+  --el-color-info-light-3: #869590;
+  --el-color-info-light-5: #A9B3B0;
+  --el-color-info-light-7: #CBD1D0;
+  --el-color-info-light-8: #DCE1DF;
+  --el-color-info-light-9: #EEF0EF;
+  --el-color-info-dark-2: #42524E;
+  --el-text-color-primary: #1F2A26;
+  --el-text-color-regular: #1F2A26;
+  --el-text-color-secondary: #526761;
+  --el-text-color-placeholder: #6B7B76;
+  --el-text-color-disabled: #9CAAA5;
+  --el-bg-color: #FFFFFF;
+  --el-bg-color-page: #F5F6F7;
+  --el-bg-color-overlay: #FFFFFF;
+  --el-border-color: #DDE5E1;
+  --el-border-color-lighter: #E9EEEB;
+  --el-font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --el-font-size-extra-small: 12px;
+  --el-font-size-small: 13px;
+  --el-font-size-base: 14px;
+  --el-font-size-medium: 16px;
+  --el-font-size-large: 18px;
+  --el-font-size-extra-large: 20px;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 4px;
+}
+
+body {
+  margin: 0;
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+  font-family: var(--el-font-family);
+  font-size: var(--el-font-size-base);
+  line-height: 1.5;
+}

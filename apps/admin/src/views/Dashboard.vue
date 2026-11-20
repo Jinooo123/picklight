@@ -37,11 +37,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.label { font-size: 13px; color: #526761; }
+.label { font-size: var(--el-font-size-small); color: var(--el-text-color-secondary); }
 .value { font-size: 28px; font-weight: 500; margin-top: 8px; }
 .chart { margin-top: 16px; }
-.tip { font-size: 13px; color: #8A8A8A; }
-.metrics-note { margin-top: 16px; font-size: 13px; color: #526761; line-height: 1.7; }
-.metrics-note h3 { margin: 0 0 8px; font-size: 14px; }
+.tip { font-size: var(--el-font-size-small); color: var(--el-text-color-secondary); }
+.metrics-note { margin-top: 16px; font-size: var(--el-font-size-small); color: var(--el-text-color-secondary); line-height: 1.7; }
+.metrics-note h3 { margin: 0 0 8px; font-size: var(--el-font-size-base); }
 .metrics-note p { margin: 6px 0; }
 </style>
