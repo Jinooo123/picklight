@@ -9,43 +9,65 @@ const requestConfig = {
   onUnauthorized: redirectToLogin
 }
 
-let unauthorizedHandled = false
+let unauthorizedHandledToken = null
 
 function getUni() {
-  return typeof globalThis !== 'undefined' ? globalThis.uni : null
+  if (typeof globalThis !== 'undefined' && globalThis.uni) return globalThis.uni
+  if (typeof uni !== 'undefined') return uni
+  return null
 }
 
 function getToken() {
   const uniApi = getUni()
   if (!uniApi || typeof uniApi.getStorageSync !== 'function') return ''
-  return uniApi.getStorageSync('token') || ''
+  try {
+    return uniApi.getStorageSync('token') || ''
+  } catch (error) {
+    return ''
+  }
 }
 
 function clearToken() {
   const uniApi = getUni()
   if (!uniApi || typeof uniApi.removeStorageSync !== 'function') return
-  uniApi.removeStorageSync('token')
+  try {
+    uniApi.removeStorageSync('token')
+  } catch (error) {
+    // A storage failure must not leave the request promise pending.
+  }
 }
 
 function showErrorToast(message) {
   const uniApi = getUni()
   if (!uniApi || typeof uniApi.showToast !== 'function') return
-  uniApi.showToast({ title: message, icon: 'none' })
+  try {
+    uniApi.showToast({ title: message, icon: 'none' })
+  } catch (error) {
+    // UI feedback must not replace the original request error.
+  }
 }
 
 function currentPagePath() {
   const uniApi = getUni()
   if (!uniApi || typeof uniApi.getCurrentPages !== 'function') return ''
-  const pages = uniApi.getCurrentPages()
-  const current = pages && pages[pages.length - 1]
-  return current && current.route ? `/${current.route}` : ''
+  try {
+    const pages = uniApi.getCurrentPages()
+    const current = pages && pages[pages.length - 1]
+    return current && current.route ? `/${current.route}` : ''
+  } catch (error) {
+    return ''
+  }
 }
 
 function redirectToLogin() {
   const uniApi = getUni()
   if (!uniApi || currentPagePath() === LOGIN_PAGE) return
   if (typeof uniApi.reLaunch === 'function') {
-    uniApi.reLaunch({ url: LOGIN_PAGE })
+    try {
+      uniApi.reLaunch({ url: LOGIN_PAGE })
+    } catch (error) {
+      // The failed request is still rejected even if navigation is unavailable.
+    }
   }
 }
 
@@ -92,21 +114,27 @@ function handleUnauthorized(requestToken) {
   const currentToken = getToken()
 
   // A delayed response from an old session must not clear a newer token.
-  if (currentToken !== requestToken) {
-    unauthorizedHandled = false
-    return false
-  }
+  if (currentToken !== requestToken) return false
 
-  if (unauthorizedHandled) return false
-  unauthorizedHandled = true
+  if (unauthorizedHandledToken === requestToken) return false
   clearToken()
-  requestConfig.onUnauthorized()
+  unauthorizedHandledToken = getToken()
+  callSafely(requestConfig.onUnauthorized)
   return true
 }
 
 function notify(message, options) {
   if (!options.silent && typeof requestConfig.onError === 'function') {
-    requestConfig.onError(message)
+    callSafely(requestConfig.onError, message)
+  }
+}
+
+function callSafely(callback, ...args) {
+  if (typeof callback !== 'function') return
+  try {
+    callback(...args)
+  } catch (error) {
+    // Hook failures must not change the request's resolve/reject result.
   }
 }
 
@@ -164,7 +192,6 @@ export function request(options = {}) {
         const body = response && response.data
 
         if (statusCode >= 200 && statusCode < 300) {
-          unauthorizedHandled = false
           resolve(body)
           return
         }
@@ -193,6 +220,11 @@ export function request(options = {}) {
 request.get = (url, options = {}) => request({ ...options, url, method: 'GET' })
 request.post = (url, data, options = {}) => request({ ...options, url, data, method: 'POST' })
 request.put = (url, data, options = {}) => request({ ...options, url, data, method: 'PUT' })
-request.delete = (url, options = {}) => request({ ...options, url, method: 'DELETE' })
+request.delete = (url, dataOrOptions = {}, options) => {
+  if (options === undefined) {
+    return request({ ...dataOrOptions, url, method: 'DELETE' })
+  }
+  return request({ ...options, url, data: dataOrOptions, method: 'DELETE' })
+}
 
 export default request
