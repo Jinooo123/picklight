@@ -1,21 +1,15 @@
 import { ElMessage } from 'element-plus'
 import router from '../router'
 import { createRequestClient, DEFAULT_TIMEOUT_MS } from './createRequestClient'
+import { tokenStorage } from '../auth/tokenStorage.js'
+import { authSession } from '../auth/session.js'
 
 function getToken() {
-  try {
-    return localStorage.getItem('token')
-  } catch {
-    return null
-  }
+  return tokenStorage.get()
 }
 
 function clearToken() {
-  try {
-    localStorage.removeItem('token')
-  } catch {
-    // Login navigation still works when browser storage is unavailable.
-  }
+  authSession.logout()
 }
 
 const configuredTimeout = Number(import.meta.env.VITE_API_TIMEOUT_MS)

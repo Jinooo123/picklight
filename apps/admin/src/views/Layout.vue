@@ -20,9 +20,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { authSession } from '../auth/session.js'
 const router = useRouter()
 function logout() {
-  localStorage.removeItem('token')
+  authSession.logout()
   router.replace('/login')
 }
 </script>
