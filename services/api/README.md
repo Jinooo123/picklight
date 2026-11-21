@@ -14,7 +14,7 @@ mvn spring-boot:run
 启动后访问 <http://localhost:8080/api/v1/health>，返回：
 
 ```json
-{"status":"UP","version":"0.1.0","time":"2026-11-20T02:24:25+08:00"}
+{"code":0,"message":"成功","data":{"status":"UP","version":"0.1.0","time":"2026-11-20T02:24:25+08:00"}}
 ```
 
 用 IDEA 的话直接打开 `services/api` 目录，等依赖下载完，运行 `PicklightApplication` 即可。
