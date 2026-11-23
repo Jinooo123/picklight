@@ -1,8 +1,15 @@
 package com.picklight.service.media;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+
+import javax.imageio.ImageIO;
+import javax.imageio.stream.MemoryCacheImageInputStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -13,7 +20,7 @@ import com.picklight.common.ErrorCode;
 
 /**
  * Checks a selected file before the upload service creates a destination file.
- * The final limits and whitelist must be agreed in the API contract.
+ * Video duration is read from the uploaded file, never from a client parameter.
  */
 @Component
 public class MediaValidator {
@@ -66,37 +73,55 @@ public class MediaValidator {
         if (file.getSize() > maxBytes) {
             throw new BizException(ErrorCode.MEDIA_TOO_LARGE);
         }
-        byte[] header;
         try (InputStream input = file.getInputStream()) {
-            header = input.readNBytes(12);
-        } catch (IOException exception) {
-            throw new BizException(ErrorCode.BAD_REQUEST, "无法读取文件");
-        }
-        if (!matchesHeader(extension, header)) {
+            switch (extension) {
+                case "mp4" -> Mp4Metadata.validate(input, file.getSize());
+                case "webp" -> validateWebp(input, file.getSize());
+                default -> validateImage(input, extension.equals("png") ? "png" : "jpeg");
+            }
+        } catch (EOFException | javax.imageio.IIOException e) {
             throw new BizException(ErrorCode.MEDIA_TYPE_UNSUPPORTED);
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "无法读取文件");
         }
         return new ValidatedMedia(extension, mimeType, mediaType);
     }
 
-    private boolean matchesHeader(String extension, byte[] header) {
-        return switch (extension) {
-            case "jpg", "jpeg" -> header.length >= 3
-                    && (header[0] & 0xff) == 0xff
-                    && (header[1] & 0xff) == 0xd8
-                    && (header[2] & 0xff) == 0xff;
-            case "png" -> header.length >= 8
-                    && (header[0] & 0xff) == 0x89
-                    && header[1] == 'P' && header[2] == 'N' && header[3] == 'G'
-                    && header[4] == 0x0d && header[5] == 0x0a
-                    && header[6] == 0x1a && header[7] == 0x0a;
-            case "webp" -> header.length >= 12
-                    && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
-                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P';
-            case "mp4" -> header.length >= 12
-                    && header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p'
-                    && !(header[8] == 'q' && header[9] == 't' && header[10] == ' ' && header[11] == ' ');
-            default -> false;
-        };
+    private static void validateImage(InputStream input, String expected) throws IOException {
+        // Read dimensions from the image metadata without expanding all pixels.
+        try (var stream = new MemoryCacheImageInputStream(input)) {
+            var readers = ImageIO.getImageReaders(stream);
+            if (readers.hasNext()) {
+                var reader = readers.next();
+                try {
+                    reader.setInput(stream);
+                    if (expected.equalsIgnoreCase(reader.getFormatName())
+                            && reader.getWidth(0) > 0 && reader.getHeight(0) > 0) {
+                        return;
+                    }
+                } finally {
+                    reader.dispose();
+                }
+            }
+        }
+        throw new BizException(ErrorCode.MEDIA_TYPE_UNSUPPORTED);
+    }
+
+    private static void validateWebp(InputStream input, long size) throws IOException {
+        byte[] header = input.readNBytes(20);
+        if (header.length == 20) {
+            var data = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
+            long riffSize = Integer.toUnsignedLong(data.getInt(4));
+            long chunkSize = Integer.toUnsignedLong(data.getInt(16));
+            String type = new String(header, 12, 4, StandardCharsets.US_ASCII);
+            if ("RIFF".equals(new String(header, 0, 4, StandardCharsets.US_ASCII))
+                    && "WEBP".equals(new String(header, 8, 4, StandardCharsets.US_ASCII))
+                    && riffSize + 8 == size && chunkSize > 0 && chunkSize <= size - 20
+                    && (type.equals("VP8 ") || type.equals("VP8L") || type.equals("VP8X"))) {
+                return;
+            }
+        }
+        throw new BizException(ErrorCode.MEDIA_TYPE_UNSUPPORTED);
     }
 
     public record ValidatedMedia(String extension, String mimeType, String mediaType) {
