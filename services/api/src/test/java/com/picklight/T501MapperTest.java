@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.picklight.domain.post.Media;
 import com.picklight.domain.post.Post;
@@ -21,12 +24,13 @@ import com.picklight.repository.PostMapper;
 import com.picklight.repository.PostTagMapper;
 import com.picklight.repository.TagMapper;
 
+@EnabledIfEnvironmentVariable(named = "T501_MYSQL_URL", matches = ".+")
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:t501;MODE=MySQL;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password="
+        "spring.datasource.url=${T501_MYSQL_URL}",
+        "spring.datasource.username=${T501_MYSQL_USER}",
+        "spring.datasource.password=${T501_MYSQL_PASSWORD}"
 })
+@Transactional
 class T501MapperTest {
     @Autowired
     private JdbcTemplate jdbc;
@@ -45,15 +49,13 @@ class T501MapperTest {
 
     @Test
     void mapsTablesAndEnforcesCompositeUniqueness() {
-        jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY)");
-        jdbc.execute("CREATE TABLE posts (id BIGINT AUTO_INCREMENT PRIMARY KEY, author_id BIGINT NOT NULL, body VARCHAR(2000), media_type VARCHAR(16), status VARCHAR(16) NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, FOREIGN KEY (author_id) REFERENCES users(id))");
-        jdbc.execute("CREATE TABLE media (id BIGINT AUTO_INCREMENT PRIMARY KEY, post_id BIGINT, uploader_id BIGINT NOT NULL, storage_key VARCHAR(255) NOT NULL UNIQUE, mime_type VARCHAR(127) NOT NULL, size_bytes BIGINT NOT NULL, sort_order INT NOT NULL, FOREIGN KEY (post_id) REFERENCES posts(id), FOREIGN KEY (uploader_id) REFERENCES users(id))");
-        jdbc.execute("CREATE TABLE tags (id BIGINT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(191) NOT NULL UNIQUE)");
-        jdbc.execute("CREATE TABLE post_tags (post_id BIGINT NOT NULL, tag_id BIGINT NOT NULL, PRIMARY KEY (post_id, tag_id), FOREIGN KEY (post_id) REFERENCES posts(id), FOREIGN KEY (tag_id) REFERENCES tags(id))");
-        jdbc.update("INSERT INTO users (id) VALUES (?)", 1L);
+        String username = "t501-" + UUID.randomUUID();
+        jdbc.update("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                username, "test-only");
+        Long authorId = jdbc.queryForObject("SELECT id FROM users WHERE username = ?", Long.class, username);
 
         Post post = new Post();
-        post.setAuthorId(1L);
+        post.setAuthorId(authorId);
         post.setBody("test post");
         post.setStatus(PostStatus.PUBLISHED);
         post.setCreatedAt(LocalDateTime.of(2026, 11, 21, 12, 0));
@@ -68,9 +70,9 @@ class T501MapperTest {
         assertEquals(PostStatus.DELETED, posts.selectById(post.getId()).getStatus());
 
         Media file = new Media();
-        file.setUploaderId(1L);
+        file.setUploaderId(authorId);
         file.setPostId(post.getId());
-        file.setStorageKey("test.jpg");
+        file.setStorageKey(username + ".jpg");
         file.setMimeType("image/jpeg");
         file.setSizeBytes(32L);
         file.setSortOrder(0);
@@ -78,9 +80,9 @@ class T501MapperTest {
         assertEquals(post.getId(), media.selectById(file.getId()).getPostId());
 
         Tag tag = new Tag();
-        tag.setName("test");
+        tag.setName(username);
         assertEquals(1, tags.insert(tag));
-        assertEquals("test", tags.selectById(tag.getId()).getName());
+        assertEquals(username, tags.selectById(tag.getId()).getName());
 
         PostTag link = new PostTag();
         link.setPostId(post.getId());
@@ -90,6 +92,14 @@ class T501MapperTest {
         assertThrows(DataIntegrityViolationException.class, () -> postTags.insert(link));
         assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
                 "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", -1L, tag.getId()));
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+                "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", post.getId(), -1L));
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+                "UPDATE posts SET author_id = -1 WHERE id = ?", post.getId()));
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+                "UPDATE media SET uploader_id = -1 WHERE id = ?", file.getId()));
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+                "UPDATE media SET post_id = -1 WHERE id = ?", file.getId()));
         assertEquals(1, postTags.delete(post.getId(), tag.getId()));
     }
 }
