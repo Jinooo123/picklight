@@ -48,6 +48,35 @@
       <text class="media__tip">{{ ruleText }}</text>
     </view>
 
+    <view class="tags">
+      <view class="tags__head">
+        <text class="tags__label">标签</text>
+        <text class="tags__count">{{ tags.length }}/{{ TAG_LIMIT }}</text>
+      </view>
+
+      <view v-if="tags.length" class="tags__list">
+        <view v-for="(tag, index) in tags" :key="tag" class="tags__chip">
+          <text class="tags__chip-text">{{ tag }}</text>
+          <text class="tags__chip-remove" @click="removeTag(index)">×</text>
+        </view>
+      </view>
+
+      <view v-if="showTagInput" class="tags__input-row">
+        <input
+          v-model="tagInput"
+          class="tags__input"
+          :maxlength="TAG_MAX_LENGTH"
+          placeholder="输入标签后回车添加"
+          confirm-type="done"
+          @confirm="addTag"
+        />
+        <button class="tags__add" @click="addTag">添加</button>
+      </view>
+
+      <text v-if="tagMessage" class="tags__error">{{ tagMessage }}</text>
+      <text v-else class="tags__tip">最多 {{ TAG_LIMIT }} 个，重复的会自动忽略</text>
+    </view>
+
     <view v-if="previewing" class="player" @click="closePlayer">
       <video class="player__video" :src="previewing.path" :autoplay="true" controls @click.stop />
       <text class="player__close">点击空白处关闭</text>
@@ -56,7 +85,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { onHide, onShow } from '@dcloudio/uni-app'
 import {
   MEDIA_LIMITS,
   chooseMedia,
@@ -65,12 +95,28 @@ import {
   planSelection,
   remainingSlots
 } from '../../utils/media'
+import {
+  TAG_LIMIT,
+  TAG_MAX_LENGTH,
+  canAddMore,
+  planTagAdd,
+  removeTagAt
+} from '../../utils/tags'
+import { loadDraft, saveDraft } from '../../utils/draft'
 
 const body = ref('')
 const media = ref([])
 const hintText = ref('')
 const previewing = ref(null)
 let hintTimer = null
+
+const tags = ref([])
+const tagInput = ref('')
+const tagMessage = ref('')
+const showTagInput = computed(() => canAddMore(tags.value))
+let tagTimer = null
+let draftTimer = null
+let draftRestored = false
 
 const counts = computed(() => countByType(media.value))
 const slots = computed(() => remainingSlots(media.value))
@@ -145,6 +191,72 @@ function preview(item) {
 function closePlayer() {
   previewing.value = null
 }
+
+function setTagMessage(text) {
+  tagMessage.value = text
+  if (tagTimer) clearTimeout(tagTimer)
+  if (text) {
+    tagTimer = setTimeout(() => {
+      tagMessage.value = ''
+    }, 4000)
+  }
+}
+
+function persistDraft() {
+  if (draftTimer) {
+    clearTimeout(draftTimer)
+    draftTimer = null
+  }
+  saveDraft({ body: body.value, tags: tags.value })
+}
+
+function addTag() {
+  const result = planTagAdd(tags.value, tagInput.value)
+  tags.value = result.tags
+  if (!result.ok) {
+    setTagMessage(result.message)
+    return
+  }
+  tagInput.value = ''
+  tagMessage.value = ''
+  persistDraft()
+}
+
+function removeTag(index) {
+  tags.value = removeTagAt(tags.value, index)
+  persistDraft()
+}
+
+watch(
+  [body, tags],
+  () => {
+    if (draftTimer) clearTimeout(draftTimer)
+    draftTimer = setTimeout(() => {
+      draftTimer = null
+      saveDraft({ body: body.value, tags: tags.value })
+    }, 800)
+  },
+  { deep: true }
+)
+
+onShow(() => {
+  if (draftRestored) return
+  draftRestored = true
+
+  const draft = loadDraft()
+  if (!draft) return
+
+  if (draft.body && !body.value) body.value = draft.body
+  if (draft.tags.length && tags.value.length === 0) tags.value = draft.tags
+
+  if (typeof uni !== 'undefined' && typeof uni.showToast === 'function') {
+    uni.showToast({ title: '已恢复上次未发布的草稿', icon: 'none' })
+  }
+})
+
+onHide(() => {
+  persistDraft()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -177,6 +289,20 @@ function closePlayer() {
 
 .media__error { display: block; margin-top: $space-xs; font-size: $font-caption; color: $danger; }
 .media__tip { display: block; margin-top: $space-xs; font-size: $font-caption; color: $text-muted; line-height: $line-height; }
+
+.tags { margin-top: $space-lg; }
+.tags__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: $space-sm; }
+.tags__label { font-size: $font-base; font-weight: 500; color: $text-main; }
+.tags__count { font-size: $font-caption; color: $text-muted; }
+.tags__list { display: flex; flex-wrap: wrap; }
+.tags__chip { display: flex; align-items: center; margin: 0 $space-sm $space-sm 0; padding: $space-xs $space-sm; border-radius: $radius; background: $brand-light; }
+.tags__chip-text { font-size: $font-caption; color: $brand; }
+.tags__chip-remove { margin-left: $space-xs; font-size: $font-base; line-height: 1; color: $brand; }
+.tags__input-row { display: flex; align-items: center; }
+.tags__input { flex: 1; box-sizing: border-box; height: $control-height; padding: 0 $space-md; border: 1px solid $border; border-radius: $radius; background: $bg-surface; font-size: $font-base; color: $text-main; }
+.tags__add { min-height: $control-height; margin-left: $space-sm; padding: 0 $space-lg; border: 0; border-radius: $radius; background: $brand; font-size: $font-base; line-height: 1; color: $text-inverse; }
+.tags__error { display: block; margin-top: $space-xs; font-size: $font-caption; color: $danger; }
+.tags__tip { display: block; margin-top: $space-xs; font-size: $font-caption; color: $text-muted; }
 
 .player { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.9); }
 .player__video { width: 100%; }
