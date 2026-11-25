@@ -1,0 +1,26 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/editor/editor",
+    "pages/me/me",
+    "pages/auth/auth",
+    "pages/detail/detail"
+  ],
+  "window": {
+    "navigationBarTitleText": "片刻 MOMENT",
+    "navigationBarBackgroundColor": "#f6f7f3",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f6f7f3"
+  },
+  "tabBar": {
+    "color": "#8a957f",
+    "selectedColor": "#254e38",
+    "list": [
+      { "pagePath": "pages/home/home", "text": "发现片刻" },
+      { "pagePath": "pages/editor/editor", "text": "记录" },
+      { "pagePath": "pages/me/me", "text": "我的回忆" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

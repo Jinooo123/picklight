@@ -1,0 +1,4 @@
+{
+  "description": "片刻课程演示小程序",
+  "rules": [{ "action": "allow", "page": "*" }]
+}
