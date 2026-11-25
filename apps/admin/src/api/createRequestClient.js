@@ -56,7 +56,7 @@ export function createRequestClient({
       const message = errorMessage(error)
       error.userMessage = message
 
-      if (error.response?.status === 401 && !config.skipAuth) {
+      if (error.response?.status === 401 && !config.skipAuth && config.handleUnauthorized !== false) {
         // A late response from the old session must not clear a new login.
         if (config._sessionToken !== (getToken() || null) || unauthorizedHandled) {
           return Promise.reject(error)
