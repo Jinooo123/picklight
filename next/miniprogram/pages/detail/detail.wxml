@@ -1,1 +1,45 @@
-<view class="page"><view wx:if="{{error}}" class="error" bindtap="load">{{error}} · 点击重试</view><block wx:if="{{post}}"><view class="eyebrow">A MOMENT TO REMEMBER</view><view class="heading">{{post.title}}</view><view class="muted">{{post.author}} · {{post.date}}</view><view class="card"><view class="body">{{post.body}}</view></view><view wx:for="{{post.media}}" wx:key="id"><image wx:if="{{item.type==='image'}}" class="cover" src="{{item.url}}" mode="aspectFit"/><video wx:else class="cover" src="{{item.url}}" controls/></view><view class="tags"><text class="chip" wx:for="{{post.tags}}" wx:key="*this"># {{item}}</text></view><view class="card"><view class="section">给这个片刻打个分</view><view class="muted">{{post.average}} 分 · {{post.ratingCount}} 人评分</view><view class="row" wx:if="{{post.user_id!==userId}}"><button wx:for="{{[1,2,3,4,5]}}" wx:key="*this" bindtap="rate" data-n="{{item}}" disabled="{{busy}}">{{item}}★</button></view><view class="notice" wx:else>不能给自己的内容评分。</view></view><view class="section">片刻回应 · {{total}}</view><input value="{{body}}" bindinput="input" maxlength="500" placeholder="说说让你有共鸣的地方…"/><button bindtap="send" loading="{{busy}}" disabled="{{busy}}">留下回应</button><view class="comment" wx:for="{{comments}}" wx:key="id"><view>{{item.author}}</view><view class="body">{{item.body}}</view><button wx:if="{{item.user_id===userId||role==='ADMIN'}}" class="secondary" data-id="{{item.id}}" bindtap="remove">删除回应</button></view></block></view>
+<view class="page">
+  <view wx:if="{{unavailable}}" class="empty">
+    <view>{{error}}</view>
+    <button class="secondary" bindtap="home">返回首页</button>
+  </view>
+  <view wx:elif="{{error}}" class="error" bindtap="load">{{error}} · 点击重试</view>
+
+  <block wx:if="{{post}}">
+    <view class="eyebrow">A MOMENT TO REMEMBER</view>
+    <view class="heading">{{post.title}}</view>
+    <view class="muted">{{post.author}} · {{publishedAt}}</view>
+    <view wx:if="{{post.body}}" class="card"><view class="body">{{post.body}}</view></view>
+
+    <block wx:if="{{post.media.length}}">
+      <video wx:if="{{post.media[0].type==='video'}}" class="cover" src="{{post.media[0].url}}" controls/>
+      <image wx:elif="{{post.media.length===1}}" class="cover" src="{{post.media[0].url}}" mode="aspectFill" bindtap="previewImage" data-url="{{post.media[0].url}}"/>
+      <swiper wx:else class="gallery" indicator-dots circular>
+        <swiper-item wx:for="{{post.media}}" wx:key="id">
+          <image class="gallery-image" src="{{item.url}}" mode="aspectFill" bindtap="previewImage" data-url="{{item.url}}"/>
+        </swiper-item>
+      </swiper>
+    </block>
+
+    <view class="tags">
+      <text class="chip" wx:for="{{post.tags}}" wx:key="*this"># {{item}}</text>
+    </view>
+    <view class="card">
+      <view class="section">给这个片刻打个分</view>
+      <view class="muted">{{post.average}} 分 · {{post.ratingCount}} 人评分</view>
+      <view class="row" wx:if="{{post.user_id!==userId}}">
+        <button wx:for="{{[1,2,3,4,5]}}" wx:key="*this" bindtap="rate" data-n="{{item}}" disabled="{{!!pendingAction}}">{{item}}★</button>
+      </view>
+      <view class="notice" wx:else>不能给自己的内容评分。</view>
+    </view>
+
+    <view class="section">片刻回应 · {{total}}</view>
+    <input value="{{body}}" bindinput="input" maxlength="500" placeholder="说说让你有共鸣的地方…"/>
+    <button bindtap="send" loading="{{pendingAction==='comment'}}" disabled="{{!!pendingAction}}">留下回应</button>
+    <view class="comment" wx:for="{{comments}}" wx:key="id">
+      <view>{{item.author}}</view>
+      <view class="body">{{item.body}}</view>
+      <button wx:if="{{item.user_id===userId||role==='ADMIN'}}" class="secondary" data-id="{{item.id}}" bindtap="remove">删除回应</button>
+    </view>
+  </block>
+</view>

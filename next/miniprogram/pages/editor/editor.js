@@ -54,7 +54,7 @@ Page({
       for (const f of b.tempFiles) {
         if (this.data.media.length >= 9) throw Error("最多 9 个文件");
         const m = await a.upload(f.tempFilePath);
-        this.setData({ media: this.data.media.concat(a.media(m)) });
+        this.setData({ media: this.data.media.concat({ ...m, url: f.tempFilePath }) });
       }
     } catch (e) {
       if (!String(e.errMsg || "").includes("cancel")) a.report(e);
