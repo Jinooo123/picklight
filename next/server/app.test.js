@@ -305,11 +305,13 @@ test("原生小程序页面与适配器连接真实 API（不代替微信渲染�
   const { readFileSync } = await import("node:fs");
   const vm = await import("node:vm");
   const store = { "moment-token": u.token, "moment-user": u.user };
+  const listRequests = [];
   const wx = {
     getStorageSync: (k) => store[k],
     removeStorageSync: (k) => delete store[k],
     stopPullDownRefresh() {},
     request(o) {
+      if (o.url.includes("/posts?")) listRequests.push(o.url);
       fetch(o.url, {
         method: o.method,
         headers: { "Content-Type": "application/json", ...o.header },
@@ -338,15 +340,38 @@ test("原生小程序页面与适配器连接真实 API（不代替微信渲染�
   page.setData = function (v) {
     Object.assign(this.data, v);
   };
-  await page.load();
+  await page.onLoad?.();
+  await page.onShow();
+  assert.equal(listRequests.length, 1);
   assert.equal(page.data.error, "");
   assert.equal(page.data.total, 0);
   const api = module.exports;
   const p = await api.request("/posts", "POST", { ...post, tags: ["原生端"] });
   assert.equal(p.title, post.title);
-  await page.load();
+  await page.onShow();
   assert.equal(page.data.total, 1);
   assert.equal(page.data.items[0].author, "native");
+  for (let i = 0; i < 10; i++) {
+    await api.request("/posts", "POST", { ...post, title: "分页记录" + i });
+  }
+  await page.onPullDownRefresh();
+  assert.equal(page.data.items.length, 10);
+  assert.equal(page.data.items[0].title, "分页记录9");
+
+  // 翻页前插入新记录，使第二页与已显示的第一页重叠一条。
+  const latest = await api.request("/posts", "POST", post);
+  await page.onReachBottom();
+  assert.equal(page.data.page, 2);
+  assert.equal(page.data.items.length, 11);
+  assert.equal(new Set(page.data.items.map((item) => item.id)).size, 11);
+  assert.equal(page.data.items.at(-1).id, p.id);
+  const lastRequestCount = listRequests.length;
+  await page.onReachBottom();
+  assert.equal(listRequests.length, lastRequestCount);
+  await page.onPullDownRefresh();
+  assert.equal(page.data.page, 1);
+  assert.equal(page.data.items.length, 10);
+  assert.equal(page.data.items[0].id, latest.id);
   const config = JSON.parse(
     readFileSync(new URL("../miniprogram/app.json", import.meta.url), "utf8"),
   );

@@ -1,4 +1,5 @@
 const a = require("../../api");
+const PAGE_SIZE = 10;
 Page({
   data: {
     items: [],
@@ -12,11 +13,8 @@ Page({
     loading: false,
     error: "",
   },
-  onLoad() {
-    this.load();
-  },
   onShow() {
-    if (this.data.items.length) this.load();
+    return this.load();
   },
   input(e) {
     this.setData({ q: e.detail.value });
@@ -31,12 +29,15 @@ Page({
   },
   async load(more = false) {
     if (typeof more !== "boolean") more = false;
+    const requestId = (this.requestId || 0) + 1;
+    this.requestId = requestId;
     this.setData({ loading: true, error: "" });
     try {
       const p = more ? this.data.page + 1 : 1;
       const b = await a.request(
         "/posts?page=" +
           p +
+          "&pageSize=" + PAGE_SIZE +
           "&q=" +
           encodeURIComponent(this.data.q) +
           "&tag=" +
@@ -46,27 +47,31 @@ Page({
           "&to=" +
           this.data.to,
       );
+      const tags = more ? this.data.tags : await a.request("/tags");
+      if (requestId !== this.requestId) return;
+      const previous = more ? this.data.items : [];
+      const seen = new Set(previous.map((item) => item.id));
       this.setData({
-        items: more
-          ? this.data.items.concat(b.items.map(a.post))
-          : b.items.map(a.post),
+        items: previous.concat(b.items.filter((item) => !seen.has(item.id)).map(a.post)),
         total: b.total,
         page: p,
-        tags: await a.request("/tags"),
+        tags,
       });
     } catch (e) {
-      this.setData({ error: e.message });
+      if (requestId === this.requestId) this.setData({ error: e.message });
     } finally {
-      this.setData({ loading: false });
-      wx.stopPullDownRefresh();
+      if (requestId === this.requestId) {
+        this.setData({ loading: false });
+        wx.stopPullDownRefresh();
+      }
     }
   },
   onPullDownRefresh() {
-    this.load();
+    return this.load();
   },
   onReachBottom() {
-    if (!this.data.loading && this.data.items.length < this.data.total)
-      this.load(true);
+    if (!this.data.loading && this.data.page * PAGE_SIZE < this.data.total)
+      return this.load(true);
   },
   detail(e) {
     wx.navigateTo({
