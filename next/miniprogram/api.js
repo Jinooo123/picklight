@@ -16,7 +16,9 @@ function request(url, method = "GET", data) {
             wx.removeStorageSync("moment-user");
             app().globalData.user = null;
           }
-          reject(Error(r.data.message || "请求失败"));
+          const error = Error(r.data.message || "请求失败");
+          error.statusCode = r.statusCode;
+          reject(error);
         }
       },
       fail: () => reject(Error("连接失败，请检查服务地址与网络")),
@@ -36,15 +38,7 @@ function login() {
   return false;
 }
 function media(m) {
-  return {
-    ...m,
-    url:
-      app().globalData.api +
-      m.url +
-      (m.url.startsWith("/uploads/")
-        ? "?token=" + wx.getStorageSync("moment-token")
-        : ""),
-  };
+  return { ...m, url: app().globalData.api + m.url };
 }
 function post(p) {
   return { ...p, date: p.created_at.slice(0, 10), media: p.media.map(media) };

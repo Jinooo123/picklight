@@ -214,9 +214,8 @@ async function upload(e) {
       if (editor.value.media.length >= 9) throw Error("最多 9 个媒体文件");
       const data = new FormData();
       data.append("file", file);
-      editor.value.media.push(
-        await api("/media", { method: "POST", body: data }),
-      );
+      const media = await api("/media", { method: "POST", body: data });
+      editor.value.media.push({ ...media, unpublished: true });
     }
   } catch (e) {
     error.value = e.message;
@@ -356,8 +355,9 @@ function date(s) {
     day: "numeric",
   });
 }
-function mediaUrl(m) {
-  return m.url + (m.url.startsWith("/uploads/") ? "?token=" + token.value : "");
+function editorMediaUrl(m) {
+  if (!m.unpublished) return m.url;
+  return m.url + (m.url.startsWith("/uploads/") ? "?token=" + encodeURIComponent(token.value) : "");
 }
 onMounted(async () => {
   try {
@@ -575,12 +575,12 @@ onMounted(async () => {
             <button class="cover" v-if="p.media.length" @click="detail(p)">
               <img
                 v-if="p.media[0].type === 'image'"
-                :src="mediaUrl(p.media[0])"
+                :src="p.media[0].url"
                 alt="片刻影像"
                 loading="lazy"
               /><video
                 v-else
-                :src="mediaUrl(p.media[0])"
+                :src="p.media[0].url"
                 preload="metadata"
               /><span class="media-label">{{
                 p.media[0].type === "video"
@@ -985,9 +985,9 @@ onMounted(async () => {
             <div v-for="(m, i) in editor.media">
               <img
                 v-if="m.type === 'image'"
-                :src="mediaUrl(m)"
+                :src="editorMediaUrl(m)"
                 alt="已上传图片"
-              /><video v-else :src="mediaUrl(m)" controls /><button
+              /><video v-else :src="editorMediaUrl(m)" controls /><button
                 type="button"
                 @click="editor.media.splice(i, 1)"
                 aria-label="移除媒体"
@@ -1025,8 +1025,8 @@ onMounted(async () => {
           <template v-for="m in selected.media"
             ><img
               v-if="m.type === 'image'"
-              :src="mediaUrl(m)"
-              alt="片刻影像" /><video v-else controls :src="mediaUrl(m)"
+              :src="m.url"
+              alt="片刻影像" /><video v-else controls :src="m.url"
           /></template>
         </div>
         <div class="card-tags">

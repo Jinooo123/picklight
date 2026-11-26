@@ -19,6 +19,10 @@ Page({
   input(e) {
     this.setData({ q: e.detail.value });
   },
+  search(e) {
+    this.appliedQuery = e.detail.value;
+    return this.load();
+  },
   date(e) {
     this.setData({ [e.currentTarget.dataset.key]: e.detail.value });
     this.load();
@@ -39,7 +43,7 @@ Page({
           p +
           "&pageSize=" + PAGE_SIZE +
           "&q=" +
-          encodeURIComponent(this.data.q) +
+          encodeURIComponent(this.appliedQuery || "") +
           "&tag=" +
           encodeURIComponent(this.data.tag) +
           "&from=" +
@@ -70,7 +74,7 @@ Page({
     return this.load();
   },
   onReachBottom() {
-    if (!this.data.loading && this.data.page * PAGE_SIZE < this.data.total)
+    if (!this.data.error && !this.data.loading && this.data.page * PAGE_SIZE < this.data.total)
       return this.load(true);
   },
   detail(e) {
@@ -82,6 +86,7 @@ Page({
     wx.switchTab({ url: "/pages/editor/editor" });
   },
   clear() {
+    this.appliedQuery = "";
     this.setData({ tag: "", from: "", to: "", q: "" });
     this.load();
   },

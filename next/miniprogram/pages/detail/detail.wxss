@@ -1,0 +1,11 @@
+.gallery {
+  height: 400rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.gallery-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

@@ -299,7 +299,7 @@ test("日期边界拒绝与媒体独立发布", async (t) => {
   );
 });
 
-test("原生小程序页面与适配器连接真实 API（不代替微信渲染验收）", async (t) => {
+test("原生小程序首页刷新、详情评分确认与内容不可见状态", async (t) => {
   const { base, signup } = await fixture(t);
   const u = await signup("native");
   const { readFileSync } = await import("node:fs");
@@ -372,6 +372,52 @@ test("原生小程序页面与适配器连接真实 API（不代替微信渲染�
   assert.equal(page.data.page, 1);
   assert.equal(page.data.items.length, 10);
   assert.equal(page.data.items[0].id, latest.id);
+
+  // 用第二个账号操作详情页，确认与取消都走页面的真实事件处理函数。
+  const reader = await signup("reader");
+  store["moment-token"] = reader.token;
+  store["moment-user"] = reader.user;
+  let ratingRequests = 0;
+  const request = wx.request;
+  wx.request = (options) => {
+    if (options.url.endsWith("/rating")) ratingRequests++;
+    request(options);
+  };
+  wx.showToast = () => {};
+  let detail;
+  vm.runInNewContext(
+    readFileSync(new URL("../miniprogram/pages/detail/detail.js", import.meta.url), "utf8"),
+    { require: () => api, Page: (definition) => (detail = definition), wx },
+  );
+  detail.setData = page.setData;
+  detail.onLoad({ id: p.id });
+  await detail.onShow();
+  assert.equal(detail.data.post.title, p.title);
+  assert.match(detail.data.publishedAt, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  const stars = (n) => ({ currentTarget: { dataset: { n } } });
+  wx.showModal = async () => ({ confirm: false });
+  await detail.rate(stars(4));
+  assert.equal(ratingRequests, 0);
+  assert.equal(detail.data.post.ratingCount, 0);
+
+  let confirm;
+  wx.showModal = () => new Promise((resolve) => { confirm = resolve; });
+  const pending = detail.rate(stars(3));
+  await detail.rate(stars(1));
+  confirm({ confirm: true });
+  await pending;
+  assert.equal(ratingRequests, 1);
+  assert.equal(detail.data.post.average, 3);
+  wx.showModal = async () => ({ confirm: true });
+  await detail.rate(stars(5));
+  assert.equal(detail.data.post.average, 5);
+  assert.equal(detail.data.post.ratingCount, 1);
+  store["moment-token"] = u.token;
+  await api.request("/posts/" + p.id, "DELETE");
+  await detail.onShow();
+  assert.equal(detail.data.post, null);
+  assert.equal(detail.data.unavailable, true);
+  assert.match(detail.data.error, /不存在|下架/);
   const config = JSON.parse(
     readFileSync(new URL("../miniprogram/app.json", import.meta.url), "utf8"),
   );
