@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 /**
  * 全局异常处理。把各类异常统一转成 {@link Result}，HTTP 状态码按错误类型区分：
@@ -64,6 +66,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result> handleNoResource(NoResourceFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Result.error(ErrorCode.NOT_FOUND, "请求的资源不存在"));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Result> handleUploadLimit(MaxUploadSizeExceededException e) {
+        return ResponseEntity.badRequest().body(Result.error(ErrorCode.MEDIA_TOO_LARGE));
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<Result> handleInvalidMultipart(MultipartException e) {
+        return ResponseEntity.badRequest().body(Result.error(ErrorCode.BAD_REQUEST, "无法解析上传请求"));
     }
 
     /** 兜底：未预期的异常，记录日志，对外只给通用提示。 */

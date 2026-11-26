@@ -1,0 +1,24 @@
+name: moment-check
+on:
+  push:
+    paths: ['next/**', '.github/workflows/moment-check.yml']
+  pull_request:
+    paths: ['next/**', '.github/workflows/moment-check.yml']
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: next
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: next/package-lock.json
+      - run: npm ci --registry=https://registry.npmjs.org
+      - run: npm test
+      - run: npm run build

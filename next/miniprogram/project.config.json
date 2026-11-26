@@ -1,0 +1,7 @@
+{
+  "appid": "touristappid",
+  "projectname": "moment",
+  "compileType": "miniprogram",
+  "setting": { "urlCheck": false, "es6": true, "enhance": true },
+  "libVersion": "3.6.5"
+}
